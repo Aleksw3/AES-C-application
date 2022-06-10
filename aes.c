@@ -39,7 +39,7 @@ void print_roundkeys(uint32_t* key, uint16_t key_length)
     }    
 }
 
-uint32_t* key_scheduler(const uint32_t* key, const uint16_t key_length, uint32_t* round_keys)
+void key_scheduler(const uint32_t* key, const uint16_t key_length, uint32_t* round_keys)
 {
     uint8_t rounds = (key_length == 128) ? 10 : (key_length == 192) ? 12 : 14;
     uint8_t nr_key_words = key_length/32;
@@ -80,7 +80,7 @@ uint32_t* key_scheduler(const uint32_t* key, const uint16_t key_length, uint32_t
 }
 
 // Create keys for decryption when using the equivalent decryption approach (see FIPS definition 5.3.5)
-uint32_t* InvMixColKey(uint32_t* keys, const uint16_t key_length, uint32_t* new_keys)
+void InvMixColKey(uint32_t* keys, const uint16_t key_length, uint32_t* new_keys)
 {
     uint8_t rounds = (key_length == 128) ? 10 : (key_length == 192) ? 12 : 14;
     uint8_t number_of_words = (rounds+1)*4;
@@ -106,11 +106,11 @@ uint32_t* InvMixColKey(uint32_t* keys, const uint16_t key_length, uint32_t* new_
     }
 }
 
-uint32_t* encrypt(uint32_t* msg, uint16_t msg_length, uint32_t* round_keys, uint16_t key_length, uint32_t* cipher, uint16_t cipher_length)
+void encrypt(uint32_t* msg, uint16_t msg_length, uint32_t* round_keys, uint16_t key_length, uint32_t* cipher, uint16_t cipher_length)
 {
     const uint8_t rounds = (key_length == 128) ? 10 : (key_length == 192) ? 12 : 14;
 
-    uint32_t* padded_msg = malloc(padded_length);
+    uint32_t* padded_msg = malloc(cipher_length);
 
     memset(padded_msg, 0, cipher_length); 
     memcpy(padded_msg, msg, msg_length);
@@ -173,7 +173,7 @@ uint32_t* encrypt(uint32_t* msg, uint16_t msg_length, uint32_t* round_keys, uint
     free(padded_msg);
 }
 
-uint32_t* decrypt(uint32_t* cipher, uint16_t cipher_length, uint32_t* round_keys, uint16_t key_length, uint32_t* cleartext)
+void decrypt(uint32_t* cipher, uint16_t cipher_length, uint32_t* round_keys, uint16_t key_length, uint32_t* cleartext)
 {
     uint8_t rounds = (key_length == 128) ? 10 : (key_length == 192) ? 12 : 14;
     uint8_t input_blocks = cipher_length/128;
@@ -184,10 +184,6 @@ uint32_t* decrypt(uint32_t* cipher, uint16_t cipher_length, uint32_t* round_keys
         cleartext[msg_block*4 + 1] = cipher[msg_block*4 + 1] ^ round_keys[rounds*4+1];
         cleartext[msg_block*4 + 2] = cipher[msg_block*4 + 2] ^ round_keys[rounds*4+2];
         cleartext[msg_block*4 + 3] = cipher[msg_block*4 + 3] ^ round_keys[rounds*4+3];
-        printf("Round keys     = %08lx %08lx %08lx %08lx\n", round_keys[rounds*4 + 0], round_keys[rounds*4 + 1], round_keys[rounds*4 + 2], round_keys[rounds*4 + 3]);
-        printf("Cipher in      = %08lx %08lx %08lx %08lx\n", cipher[msg_block*4 + 0], cipher[msg_block*4 + 1], cipher[msg_block*4 + 2], cipher[msg_block*4 + 3]);
-        printf("Cleartext xor  = %08lx %08lx %08lx %08lx\n", cleartext[msg_block*4 + 0], cleartext[msg_block*4 + 1], cleartext[msg_block*4 + 2], cleartext[msg_block*4 + 3]);
-        print_cipher(cleartext, 128);
 
         // 10/12/14 rounds with MixColumn
         for(uint8_t i = rounds-1; i > 0 ; i--){
@@ -258,7 +254,7 @@ int main(int argc, char *argv[])
     
     // Encryption
     uint16_t cipher_length = msg_length/128 * 128 + 128;
-    uint32_t* cipher = malloc(padded_length);    
+    uint32_t* cipher = malloc(cipher_length);    
 
     encrypt(msg, msg_length, enc_round_keys, key_length, cipher, cipher_length);
     printf("Encrypted message\r\n");
@@ -275,5 +271,4 @@ int main(int argc, char *argv[])
     
     printf("Decrypted message\r\n");
     print_msg_hex(decipher, msg_length);
-
 }
